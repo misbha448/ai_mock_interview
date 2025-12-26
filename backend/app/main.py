@@ -10,12 +10,7 @@ from .core.sockets import sio, interview_socket, gd_socket # Import sio from its
 app = FastAPI(title="AI Mock Interview API")
 
 # ✅ Define allowed origins for both HTTP and WebSockets
-origins = [
-    "http://localhost:3000",  # Common React dev server
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",  # Common Vite dev server
-    "http://127.0.0.1:5173",
-]
+origins = ["*"]
 
 # ✅ Database connection
 @app.on_event("startup")
