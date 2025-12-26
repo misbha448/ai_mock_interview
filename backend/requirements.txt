@@ -11,3 +11,4 @@ python-jose
 email-validator
 httpx
 pydantic-settings==2.3.4
+python-multipart
