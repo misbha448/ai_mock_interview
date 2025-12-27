@@ -1,25 +1,53 @@
 import re
-import spacy
 import os
 import json
-from transformers import pipeline
-from typing import List, Dict, Any, Set
 import time
-from google.api_core.exceptions import ResourceExhausted
-import google.generativeai as genai
 import logging
+from typing import List, Dict, Any, Set
+
+import google.generativeai as genai
+from google.api_core.exceptions import ResourceExhausted
 
 from ..core.config import settings
 
-# --- Model and Pipeline Initialization ---
-# It's good practice to load models once and reuse them.
-# Models should be downloaded via the `download_models.py` script before starting the app.
-# This avoids trying to download models at runtime.
 logger = logging.getLogger(__name__)
 
-nlp = spacy.load("en_core_web_sm")
+# ================================
+# Lazy-loaded NLP models (CRITICAL)
+# ================================
 
-ner_pipeline = pipeline("ner", model="dslim/bert-base-NER", aggregation_strategy="simple")
+_nlp = None
+_ner_pipeline = None
+
+
+def get_nlp():
+    """
+    Lazily load the spaCy NLP model.
+    This prevents loading the model at app startup,
+    which would otherwise cause OOM on free-tier hosting.
+    """
+    global _nlp
+    if _nlp is None:
+        import spacy
+        _nlp = spacy.load("en_core_web_sm")
+    return _nlp
+
+
+def get_ner_pipeline():
+    """
+    Lazily load the HuggingFace NER pipeline.
+    Loaded only when resume analysis is actually requested.
+    """
+    global _ner_pipeline
+    if _ner_pipeline is None:
+        from transformers import pipeline
+        _ner_pipeline = pipeline(
+            "ner",
+            model="dslim/bert-base-NER",
+            aggregation_strategy="simple"
+        )
+    return _ner_pipeline
+
 
 # --- Constants ---
 NON_NAMES = {name.lower() for name in {"MERN Stack", "Stack", "Problem Solving", "Education", "Projects", "Skills", "Experience"}}
