@@ -3,7 +3,7 @@ import authService from '../services/authService';
 
 // ✅ Use environment variable for backend URL
 const api = axios.create({
-    baseURL: `${process.env.REACT_APP_API_BASE_URL}/api`,
+    baseURL: `${process.env.REACT_APP_API_BASE_URL}/api/v1/auth`, // ✅ Updated to match backend prefix
     headers: {
         'Content-Type': 'application/json',
     },
