@@ -6,6 +6,7 @@ origins = [
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://prismatic-beignet-988abd.netlify.app"
 ]
 
 # ✅ Create the async Socket.IO server instance here
