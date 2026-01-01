@@ -4,54 +4,47 @@ import socketio
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from .core.config import settings
-from .core.sockets import sio, interview_socket, gd_socket # Import sio from its new central location
+from .core.sockets import sio, interview_socket, gd_socket
 
-# ✅ Initialize FastAPI
 app = FastAPI(title="AI Mock Interview API")
 
-# ✅ Define allowed origins for both HTTP and WebSockets
-origins = ["*"]
-
-# ✅ Database connection
-@app.on_event("startup")
-async def startup_db_client():
-    app.mongodb_client = AsyncIOMotorClient(settings.MONGO_DATABASE_URI)
-    app.database = app.mongodb_client[settings.MONGO_DATABASE_NAME]
-    cache_collection = app.database["interview_reviews_cache"]
-    await cache_collection.create_index("created_at", expireAfterSeconds=259200)
-
-# ✅ 1. Add CORS middleware to the FastAPI app first
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ✅ 2. Import and register socket events and API routers
+# DB
+@app.on_event("startup")
+async def startup_db_client():
+    app.mongodb_client = AsyncIOMotorClient(settings.MONGO_DATABASE_URI)
+    app.database = app.mongodb_client[settings.MONGO_DATABASE_NAME]
+
+# Routers
 from .routers import auth, chatbot, dashboard, resume, hr, interview_review, career_advisor, job_tracker, gd_router, resume_router
 from .api.endpoints import streaming
 
-# Register Socket.IO namespaces
-sio.register_namespace(interview_socket) # interview_socket is already imported
-sio.register_namespace(gd_socket)      # gd_socket is already imported
+app.include_router(auth.router, prefix="/api/v1/auth")
+app.include_router(gd_router.router, prefix="/api/v1")
+app.include_router(hr.router, prefix="/api/v1/hr")
+app.include_router(dashboard.router, prefix="/api/v1/dashboard")
+app.include_router(interview_review.router, prefix="/api/v1/interview-reviews")
+app.include_router(resume_router.router, prefix="/api/v1")
+app.include_router(chatbot.router, prefix="/api/v1/chatbot")
+app.include_router(streaming.router, prefix="/api/v1/streaming")
+app.include_router(career_advisor.router, prefix="/api/v1/career-path")
+app.include_router(job_tracker.router, prefix="/api/v1/job-tracker/rankings")
 
-# Include all API routers in the FastAPI app
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
-app.include_router(gd_router.router, prefix="/api/v1", tags=["Group Discussion"]) # This router has its own /gd prefix
-app.include_router(hr.router, prefix="/api/v1/hr", tags=["HR Interview"])
-app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
-app.include_router(interview_review.router, prefix="/api/v1/interview-reviews", tags=["Interview Review"])
-app.include_router(resume_router.router, prefix="/api/v1", tags=["Resume Analyzer"]) # Add the new resume router
-app.include_router(chatbot.router, prefix="/api/v1/chatbot", tags=["Chatbot"])
-app.include_router(streaming.router, prefix="/api/v1/streaming", tags=["Streaming"])
-app.include_router(career_advisor.router, prefix="/api/v1/career-path", tags=["Career Advisor"])
-app.include_router(job_tracker.router, prefix="/api/v1/job-tracker/rankings", tags=["Job Tracker"])
-
-@app.get("/", tags=["Root"])
-async def read_root():
+@app.get("/")
+async def root():
     return {"message": "Welcome to the AI Mock Interview API!"}
 
-# ✅ 3. Finally, wrap the fully configured FastAPI app with the Socket.IO middleware
-app = socketio.ASGIApp(sio, app)
+# Socket.IO
+sio.register_namespace(interview_socket)
+sio.register_namespace(gd_socket)
+
+socket_app = socketio.ASGIApp(sio)
+app.mount("/socket.io", socket_app)
